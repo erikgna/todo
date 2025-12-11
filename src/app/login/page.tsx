@@ -31,15 +31,11 @@ export default function LoginPage() {
 
             const response = await fetch("/api/auth/session", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ idToken }),
             });
 
-            if (!response.ok) {
-                throw new Error("Failed to create session");
-            }
+            if (!response.ok) throw new Error("Failed to create session");
 
             router.push("/dashboard");
         } catch (error) {

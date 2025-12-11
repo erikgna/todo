@@ -7,10 +7,7 @@ export async function POST(req: NextRequest) {
         const { idToken } = await req.json();
 
         const decodedToken = await verifyIdToken(idToken);
-
-        if (!decodedToken) {
-            return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-        }
+        if (!decodedToken) return NextResponse.json({ error: "Invalid token" }, { status: 401 });
 
         const cookieStore = await cookies();
         cookieStore.set("__session", idToken, {
