@@ -1,18 +1,34 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyIdToken } from "@/lib/firebase/admin";
-import { getAuthToken } from "@/lib/cookies";
+import { createServerClient } from "@supabase/ssr";
 
 export const config = {
     matcher: ["/dashboard/:path*"],
 };
 
 export async function proxy(req: NextRequest) {
-    const token = await getAuthToken();
+    let res = NextResponse.next();
 
-    const user = await verifyIdToken(token);
+    const supabase = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+            cookies: {
+                getAll() {
+                    return req.cookies.getAll();
+                },
+                setAll(cookiesToSet) {
+                    cookiesToSet.forEach(({ name, value, options }) => {
+                        req.cookies.set(name, value);
+                        res.cookies.set(name, value, options);
+                    });
+                },
+            },
+        }
+    );
+
+    const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.redirect(new URL("/login", req.url));
 
-    const res = NextResponse.next();
-    res.headers.set("x-user-id", user.uid);
+    res.headers.set("x-user-id", user.id);
     return res;
 }

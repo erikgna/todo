@@ -3,10 +3,9 @@
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { signInWithEmailAndPassword } from "firebase/auth";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { auth } from "../../lib/firebase/client";
+import { createClient } from "@/lib/supabase/client";
 
 const schema = z.object({
     email: z.email("Invalid email"),
@@ -17,29 +16,30 @@ type FormData = z.infer<typeof schema>;
 
 export default function LoginPage() {
     const router = useRouter();
-    const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
-        resolver: zodResolver(schema)
-    });
+    const { register, handleSubmit, formState: { errors } } = useForm<FormData>({ resolver: zodResolver(schema) });
+    const supabase = createClient();
 
     const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     const onSubmit = async (data: FormData) => {
         try {
             setIsLoading(true);
-            const userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
-            const idToken = await userCredential.user.getIdToken();
+            setError(null);
 
-            const response = await fetch("/api/auth/session", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ idToken }),
+            const { error } = await supabase.auth.signInWithPassword({
+                email: data.email,
+                password: data.password,
             });
 
-            if (!response.ok) throw new Error("Failed to create session");
+            if (error) {
+                setError(error.message);
+                return;
+            }
 
             router.push("/dashboard");
         } catch (error) {
-            console.error(error);
+            setError("An unexpected error occurred");
         } finally {
             setIsLoading(false);
         }
@@ -49,6 +49,12 @@ export default function LoginPage() {
         <div className="min-h-screen flex items-center justify-center bg-gray-100 p-4">
             <div className="w-full max-w-md bg-white p-6 rounded-2xl shadow-lg">
                 <h1 className="text-2xl font-bold text-center mb-6">Login</h1>
+
+                {error && (
+                    <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                        {error}
+                    </div>
+                )}
 
                 <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                     <div>
